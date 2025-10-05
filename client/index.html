@@ -46,10 +46,13 @@
       }
     </style>
   </head>
-  <br>
     <p>Current connection: <span id="connection-status"></span></p>
     <p>Counter: <span id="counter">0</span></p>
     <button onclick="increment()">increment</button>
+
+    <br>
+    <br>
+    <hr>
     
     <div class="input-message-container" style="margin-top: 10px;"> 
       <input type="text" id="input-msg"/> 
@@ -59,6 +62,8 @@
       </div>
     </div>
 
+    <br>
+    <hr>
    
     <form class="create-room-form">
       <div>
@@ -83,12 +88,36 @@
         No rooms here....
     </div>
 
+    <div class="room" style="display: none">
+      <p>Room: <span id="specific-room-name"></span></p>
+      <div class="input-message-container" style="margin-top: 10px;"> 
+        <input type="text" id="input-msg2"/> 
+        <button onclick="sendMessage2()">kirim</button>
+        <div class="message-list"> 
+          No messages here....
+        </div>
+      </div>
+    </div>
+
+    <br>
+    <hr>
 
     <script>
       const socket = io('http://localhost:3000');
+
+      let userId;
+      let roomId;
+
+      if(!localStorage.getItem("userId")) {
+        localStorage.setItem("userId", Math.random().toString(36).slice(2, 10))
+      } else {
+        userId = localStorage.getItem("userId")
+      }
+      
       const connectionStatusElement = document.getElementById('connection-status');
       const counterElement = document.getElementById('counter');
       const inputElement = document.getElementById('input-msg');
+      const inputElement2 = document.getElementById('input-msg2');
 
       const roomVisibilityOption = document.getElementById('room-visibility')
       const passwordContainer = document.getElementById('password-container')
@@ -108,7 +137,7 @@
         const password = document.getElementById('room-password').value || null;
 
         const createRoomMsg = {
-          creator_id: socket.id,
+          creatorId: userId,
           roomName,
           isPrivate,
           password
@@ -124,15 +153,25 @@
       function sendMessage() {
         const value = inputElement.value
         const message = {
-          sender: socket.id,
+          sender: userId,
           msg: value
         }
         socket.emit('send_message', message)
       }
 
+       function sendMessage2() {
+        const value = inputElement2.value
+        const message = {
+          sender: userId,
+          roomId: roomId,
+          msg: value
+        }
+        socket.emit('send_message2', message)
+      }
+
       socket.on('connect', () => {
         connectionStatusElement.innerText = 'Online';
-        socket.emit('message', `Hello from client ${socket.id}`);
+        // socket.emit('message', `Hello from client ${socket.id}`);
       });
 
       socket.on('counter_change', (newCounter) => {
@@ -146,9 +185,21 @@
         }
         const p = document.createElement("p");
         p.innerText = newMessage.msg;
-        p.setAttribute("class", newMessage.sender == socket.id ? "own" : "");
+        p.setAttribute("class", newMessage.sender == userId ? "own" : "");
         messageContainerElement.appendChild(p);
         inputElement.value = ""
+      })
+
+      socket.on('new_message2', (newMessage) => {
+        const messageContainerElement = document.querySelector(".room .message-list");
+        if (messageContainerElement.innerText == "No messages here....") {
+          messageContainerElement.innerHTML = '';
+        }
+        const p = document.createElement("p");
+        p.innerText = newMessage.msg;
+        p.setAttribute("class", newMessage.sender == userId ? "own" : "");
+        messageContainerElement.appendChild(p);
+        inputElement2.value = ""
       })
 
       socket.on('new_room', (newRoom) => {
@@ -164,18 +215,34 @@
         roomDiv.style.display = 'flex';
         roomDiv.style.gap = '20px';
         roomNameText.innerText = newRoom.name;
-        joinButton.innerText = "request join";
+        joinButton.innerText = `join ${newRoom.isPrivate ? '(private)' : ''}`
+        joinButton.style.padding = '2px 2px'
 
         joinButton.addEventListener("click", () => {
-          if(newRoom.isPrivate) {
-            const password =  prompt("password")
-            const isMatch = password == newRoom.password
-            alert(isMatch ? "cocok" : 'gakk')
+          roomId = newRoom.id;
+          const joinRoomPayload = {
+            userId,
+            roomId: newRoom.id,
+          };
+
+          if (newRoom.isPrivate) {
+            const password = prompt("password");
+            const isMatch = password === newRoom.password;
+            if (isMatch) {
+              socket.emit("join_room", { ...joinRoomPayload, password });
+              alert("cocok");
+            } else {
+              alert("gakk");
+            }
+          } else {
+            socket.emit("join_room", joinRoomPayload);
+            const specificRoom = document.querySelector(".room");
+            const specificRoomName = document.getElementById("specific-room-name")
+            specificRoom.style.display = 'block';
+            specificRoomName.textContent = newRoom.name;
+            roomDiv.style.display = 'none';
           }
-          else {
-            alert("oke")
-          }          
-        })
+        });
 
         roomDiv.appendChild(roomNameText)
         roomDiv.appendChild(joinButton)

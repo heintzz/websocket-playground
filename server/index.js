@@ -27,10 +27,10 @@ app.get('/', (req, res) => {
 let counter = 0;
 
 io.on('connection', (socket) => {
-  console.log('client is connected:', socket.id);
+  // console.log('client is connected:', socket.id);
 
   socket.on('message', (message) => {
-    console.log('message from client:', message);
+    // console.log('message from client:', message);
   });
 
   socket.emit('counter_change', counter);
@@ -42,6 +42,10 @@ io.on('connection', (socket) => {
 
   socket.on('send_message', (data) => {
     io.emit('new_message', data);
+  });
+
+  socket.on('send_message2', (data) => {
+    io.to(data.roomId).emit('new_message2', data);
   });
 
   socket.on('create_room', (data) => {
@@ -58,8 +62,18 @@ io.on('connection', (socket) => {
     };
     db.rooms[roomId] = newRoom;
 
-    console.log(db);
     io.emit('new_room', newRoom);
+  });
+
+  socket.on('join_room', (data) => {
+    const newUserId = data.userId;
+    const room = db.rooms[data.roomId];
+
+    if (!room.members.has(newUserId)) {
+      room.members.add(newUserId);
+    }
+
+    socket.join(data.roomId);
   });
 
   socket.on('disconnect', () => {
