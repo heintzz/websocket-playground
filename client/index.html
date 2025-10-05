@@ -36,6 +36,14 @@
         align-self: self-end;
         border: 1px solid blue; 
       }
+
+      .create-room-form {
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        row-gap: 5px;
+        width: fit-content;
+      }
     </style>
   </head>
   <br>
@@ -50,18 +58,70 @@
         No messages here....
       </div>
     </div>
+
+   
+    <form class="create-room-form">
+      <div>
+        <label for="room-name">room name: </label>
+        <input type="text" id="room-name"/>
+      </div> 
+      <div>
+        <label for="room-visibility">room visibility: </label>
+        <select name="room-visibility" id="room-visibility">
+          <option value="false">Public</option>
+          <option value="true">Private</option>
+        </select> 
+      </div> 
+      <div id="password-container" style="display: none;">
+        <label for="room-password">password: </label>
+        <input type="password" id="room-password" />
+      </div>
+      <button type="submit">Buat ruangan</button>
+    </form>
+
+     <div class="room-list" style="margin-top: 10px;"> 
+        No rooms here....
+    </div>
+
+
     <script>
       const socket = io('http://localhost:3000');
       const connectionStatusElement = document.getElementById('connection-status');
       const counterElement = document.getElementById('counter');
-      const inputElement = document.getElementById("input-msg")
+      const inputElement = document.getElementById('input-msg');
+
+      const roomVisibilityOption = document.getElementById('room-visibility')
+      const passwordContainer = document.getElementById('password-container')
+
+      const createRoomForm = document.getElementsByClassName('create-room-form')[0];
+
+      roomVisibilityOption.addEventListener('change', function (e) {
+        const isPrivate = e.target.value === "true";
+        passwordContainer.style.display = isPrivate ? 'block' : 'none';
+      });
+
+      createRoomForm.addEventListener('submit', function (e) {
+        e.preventDefault(); 
+
+        const roomName = document.getElementById('room-name').value;
+        const isPrivate = roomVisibilityOption.value === "true";
+        const password = document.getElementById('room-password').value || null;
+
+        const createRoomMsg = {
+          creator_id: socket.id,
+          roomName,
+          isPrivate,
+          password
+        }
+
+        socket.emit("create_room", createRoomMsg)
+      });
 
       function increment() {
         socket.emit('increment_counter');
       }
 
       function sendMessage() {
-       
         const value = inputElement.value
         const message = {
           sender: socket.id,
@@ -89,6 +149,45 @@
         p.setAttribute("class", newMessage.sender == socket.id ? "own" : "");
         messageContainerElement.appendChild(p);
         inputElement.value = ""
+      })
+
+      socket.on('new_room', (newRoom) => {
+        const roomContainerElement = document.querySelector(".room-list");
+        if (roomContainerElement.innerText == "No rooms here....") {
+          roomContainerElement.innerHTML = '';
+        }
+
+        const roomDiv = document.createElement("div");
+        const roomNameText = document.createElement("p");
+        const joinButton = document.createElement("button");
+
+        roomDiv.style.display = 'flex';
+        roomDiv.style.gap = '20px';
+        roomNameText.innerText = newRoom.name;
+        joinButton.innerText = "request join";
+
+        joinButton.addEventListener("click", () => {
+          if(newRoom.isPrivate) {
+            const password =  prompt("password")
+            const isMatch = password == newRoom.password
+            alert(isMatch ? "cocok" : 'gakk')
+          }
+          else {
+            alert("oke")
+          }          
+        })
+
+        roomDiv.appendChild(roomNameText)
+        roomDiv.appendChild(joinButton)
+        roomContainerElement.appendChild(roomDiv);
+
+        const roomName = document.getElementById('room-name');
+        const password = document.getElementById('room-password');
+
+        roomName.value = ""
+        password.value = ""
+        roomVisibilityOption.value = "false"
+        roomVisibilityOption.dispatchEvent(new Event('change'));
       })
 
       socket.on('disconnect', () => {

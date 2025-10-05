@@ -6,6 +6,10 @@ const { Server } = require('socket.io');
 const port = 3000;
 const app = express();
 
+const db = {
+  rooms: {},
+};
+
 app.use(cors({ origin: 'http://127.0.0.1:5500' }));
 
 // adding another control to our app such as websocket or maybe https
@@ -29,15 +33,33 @@ io.on('connection', (socket) => {
     console.log('message from client:', message);
   });
 
-  socket.emit('counter_change', counter); // send initial value
+  socket.emit('counter_change', counter);
 
   socket.on('increment_counter', () => {
     counter++;
-    io.emit('counter_change', counter); // broadcast to all clients
+    io.emit('counter_change', counter);
   });
 
   socket.on('send_message', (data) => {
     io.emit('new_message', data);
+  });
+
+  socket.on('create_room', (data) => {
+    const { creatorId, roomName, isPrivate, password } = data;
+    const roomId = Math.random().toString(36).slice(2, 6);
+
+    const newRoom = {
+      id: roomId,
+      name: roomName,
+      isPrivate: isPrivate,
+      password: password,
+      members: new Set([creatorId]),
+      messages: [],
+    };
+    db.rooms[roomId] = newRoom;
+
+    console.log(db);
+    io.emit('new_room', newRoom);
   });
 
   socket.on('disconnect', () => {
