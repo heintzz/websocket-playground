@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebSocket Playground</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        font-family: 'Poppins';
+      }
+
+      body {
+        padding: 10px;
+      }
+
+      .message-list {
+        border: 1px solid black;
+        display: flex;
+        flex-direction: column;
+        row-gap: 10px;
+        width: 500px;
+        margin-top: 10px;
+        padding: 10px;
+      }
+
+      .message-list p {
+        width: fit-content;
+        border: 1px solid black;
+        padding: 10px;
+      }
+
+      .message-list p.own {
+        align-self: self-end;
+        border: 1px solid blue; 
+      }
+    </style>
+  </head>
+  <br>
+    <p>Current connection: <span id="connection-status"></span></p>
+    <p>Counter: <span id="counter">0</span></p>
+    <button onclick="increment()">increment</button>
+    
+    <div class="input-message-container" style="margin-top: 10px;"> 
+      <input type="text" id="input-msg"/> 
+      <button onclick="sendMessage()">kirim</button>
+      <div class="message-list"> 
+        No messages here....
+      </div>
+    </div>
+    <script>
+      const socket = io('http://localhost:3000');
+      const connectionStatusElement = document.getElementById('connection-status');
+      const counterElement = document.getElementById('counter');
+      const inputElement = document.getElementById("input-msg")
+
+      function increment() {
+        socket.emit('increment_counter');
+      }
+
+      function sendMessage() {
+       
+        const value = inputElement.value
+        const message = {
+          sender: socket.id,
+          msg: value
+        }
+        socket.emit('send_message', message)
+      }
+
+      socket.on('connect', () => {
+        connectionStatusElement.innerText = 'Online';
+        socket.emit('message', `Hello from client ${socket.id}`);
+      });
+
+      socket.on('counter_change', (newCounter) => {
+        counterElement.innerText = newCounter;
+      });
+
+      socket.on('new_message', (newMessage) => {
+        const messageContainerElement = document.querySelector(".message-list");
+        if (messageContainerElement.innerText == "No messages here....") {
+          messageContainerElement.innerHTML = '';
+        }
+        const p = document.createElement("p");
+        p.innerText = newMessage.msg;
+        p.setAttribute("class", newMessage.sender == socket.id ? "own" : "");
+        messageContainerElement.appendChild(p);
+        inputElement.value = ""
+      })
+
+      socket.on('disconnect', () => {
+        console.log('Disconnected from server');
+        connectionStatusElement.innerText = 'Offline';
+      });
+    </script>
+  </body>
+</html>
