@@ -145,7 +145,7 @@
 
         socket.emit("create_room", createRoomMsg)
       });
-
+      
       function increment() {
         socket.emit('increment_counter');
       }
@@ -177,6 +177,62 @@
       socket.on('counter_change', (newCounter) => {
         counterElement.innerText = newCounter;
       });
+
+      socket.on('room_list', rooms => {
+        const countRoom = Object.keys(rooms).length
+        const roomContainerElement = document.querySelector(".room-list");
+
+        if (countRoom === 0) {
+          return
+        }
+
+        if (roomContainerElement.innerText == "No rooms here....") {
+          roomContainerElement.innerHTML = '';
+        }
+
+        Object.keys(rooms).forEach((key) => {
+          const roomDiv = document.createElement("div");
+          const room = rooms[key]
+          const roomNameText = document.createElement("p");
+          const joinButton = document.createElement("button");
+
+          roomDiv.style.display = 'flex';
+          roomDiv.style.gap = '20px';
+          roomNameText.innerText = room.name;
+          joinButton.innerText = `join ${room.isPrivate ? '(private)' : ''}`
+          joinButton.style.padding = '2px 2px'
+
+          joinButton.addEventListener("click", () => {
+            roomId = room.id;
+            const joinRoomPayload = {
+              userId,
+              roomId: room.id,
+            };
+
+            if (room.isPrivate) {
+              const password = prompt("password");
+              const isMatch = password === room.password;
+              if (isMatch) {
+                socket.emit("join_room", { ...joinRoomPayload, password });
+                alert("cocok");
+              } else {
+                alert("gakk");
+              }
+            } else {
+              socket.emit("join_room", joinRoomPayload);
+              const specificRoom = document.querySelector(".room");
+              const specificRoomName = document.getElementById("specific-room-name")
+              specificRoom.style.display = 'block';
+              specificRoomName.textContent = room.name;
+              roomDiv.style.display = 'none';
+            }
+          });
+
+          roomDiv.appendChild(roomNameText)
+          roomDiv.appendChild(joinButton)
+          roomContainerElement.appendChild(roomDiv);
+        })
+      })
 
       socket.on('new_message', (newMessage) => {
         const messageContainerElement = document.querySelector(".message-list");

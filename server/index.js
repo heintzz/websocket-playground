@@ -34,6 +34,7 @@ io.on('connection', (socket) => {
   });
 
   socket.emit('counter_change', counter);
+  socket.emit('room_list', db.rooms);
 
   socket.on('increment_counter', () => {
     counter++;
